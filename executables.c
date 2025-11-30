@@ -10,9 +10,9 @@ typedef struct List {
     int size;
 } List;
 
-List addList(const struct dirent* file, List list) {
+List addList(char* path, List list) {
     list.list = realloc(list.list, (list.size+1)*sizeof(char*));
-    list.list[list.size] = strdup(file->d_name);
+    list.list[list.size] = strdup(path);
     list.size++;
     return list;
 }
@@ -26,11 +26,12 @@ List browseDirectory(char* path, List execList) {
         return execList;
     }
     while ((file = readdir(dir)) != NULL) {
+        char* newPath = malloc((strlen(path)+strlen(file->d_name)+2)*sizeof(char));
         if (file->d_name[0] == '.') {
+            free(newPath);
             continue;
         }
         if (path[strlen(path)-1] != '/') {
-            char* newPath = malloc((strlen(path)+strlen(file->d_name)+2)*sizeof(char));
             strcpy(newPath, path);
             strcat(newPath, "/");
             strcat(newPath, file->d_name);
@@ -38,29 +39,25 @@ List browseDirectory(char* path, List execList) {
                 free(newPath);
                 continue;
             }
-            free(newPath);
         }
         else {
-            char* newPath = malloc((strlen(path)+strlen(file->d_name)+2)*sizeof(char));
             strcpy(newPath, path);
             strcat(newPath, file->d_name);
             if (stat(newPath, &fileStat) != 0) {
                 free(newPath);
                 continue;
             }
-            free(newPath);
         }
         if (S_ISDIR(fileStat.st_mode)) {
-            char* newPath = malloc((strlen(path)+strlen(file->d_name)+2)*sizeof(char));
             strcpy(newPath, path);
             strcat(newPath, "/");
             strcat(newPath, file->d_name);
             execList = browseDirectory(newPath, execList);
-            free(newPath);
         }
         else if (S_ISREG(fileStat.st_mode) && (fileStat.st_mode & S_IXUSR)) {
-            execList = addList(file, execList);
+            execList = addList(newPath, execList);
         }
+        free(newPath);
     }
     closedir(dir);
     return execList;
